@@ -459,7 +459,7 @@ def approval():
             Approve(),
         ),
         opt_in=Seq(
-            local_reset(Txn.sender()),
+            # local_reset(Txn.sender()),
             Approve(),
         ),
         no_op=Seq(
