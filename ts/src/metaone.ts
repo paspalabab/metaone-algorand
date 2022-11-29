@@ -198,10 +198,10 @@ describe('metaone algo tests...', () => {
               );
             }
 
-            await pay_start_algo(algoclient, sponsor,sponsor_key,account1, 100000000);
-            await pay_start_algo(algoclient, sponsor,sponsor_key,account2, 100000000);
-            await pay_start_algo(algoclient, sponsor,sponsor_key,account3, 100000000);
-            await pay_start_algo(algoclient, sponsor,sponsor_key,multsigaddr, 100000000);   
+            await pay_start_algo(algoclient, sponsor,sponsor_key,account1, 1000000);
+            await pay_start_algo(algoclient, sponsor,sponsor_key,account2, 1000000);
+            await pay_start_algo(algoclient, sponsor,sponsor_key,account3, 1000000);
+            await pay_start_algo(algoclient, sponsor,sponsor_key,multsigaddr, 1000000);   
 
             await kmdclient.importMultisig(
                 wallethandle,
@@ -905,7 +905,7 @@ describe('metaone algo tests...', () => {
    
         // build an offer
         let appArgs = [enc.encode("collect")];
-        appArgs.push(algosdk.encodeUint64(20));  
+        appArgs.push(algosdk.encodeUint64(18));  
         const foreignAssets = [asset_for_payment];                    
         const txn = algosdk.makeApplicationNoOpTxn(
             account2,
@@ -963,4 +963,128 @@ describe('metaone algo tests...', () => {
         // wait for confirmation
         await verboseWaitForConfirmation(algoclient, TxId);    
     });  
+
+    it('lender closeout', async () => {
+        
+        // Construct the transaction
+        let params = await algoclient.getTransactionParams().do();
+        // console.log(`params.genesisID: \n ${params.genesisID}`);
+        // console.log(`params.genesisHash: \n ${params.genesisHash}`);
+        // comment out the next two lines to use suggested fee
+        params.fee = 1000;
+        params.flatFee = true; 
+   
+        const appArgs = [];
+        // closeout transaction                   
+        const txn = algosdk.makeApplicationCloseOutTxn(
+            account2,
+            params,
+            appid,
+            appArgs
+        );
+
+        // send the transaction
+        logBold('Sending transaction...');
+        const signedTxn = txn.signTxn(accountKey2.private_key);
+        const { txId: TxId } = await algoclient
+        .sendRawTransaction(signedTxn)
+        .do();
+
+        // wait for confirmation
+        await verboseWaitForConfirmation(algoclient, TxId);    
+    });  
+
+    it('borrower closeout', async () => {
+        
+        // Construct the transaction
+        let params = await algoclient.getTransactionParams().do();
+        // console.log(`params.genesisID: \n ${params.genesisID}`);
+        // console.log(`params.genesisHash: \n ${params.genesisHash}`);
+        // comment out the next two lines to use suggested fee
+        params.fee = 1000;
+        params.flatFee = true; 
+   
+        const appArgs = [];
+        // closeout transaction                   
+        const txn = algosdk.makeApplicationCloseOutTxn(
+            account3,
+            params,
+            appid,
+            appArgs
+        );
+
+        // send the transaction
+        logBold('Sending transaction...');
+        const signedTxn = txn.signTxn(accountKey3.private_key);
+        const { txId: TxId } = await algoclient
+        .sendRawTransaction(signedTxn)
+        .do();
+
+        // wait for confirmation
+        await verboseWaitForConfirmation(algoclient, TxId);    
+    });  
+
+    it('withdraw plat fund', async () => {
+
+        // get suggested params
+        let suggestedParams = await algoclient.getTransactionParams().do();  
+        suggestedParams.fee = 2000;
+        suggestedParams.flatFee = true;        
+
+        // create a multisig account
+        const multiSigOptions = {
+            version: 1,
+            threshold: 2,
+            addrs: [account1, account2, account3],
+        };
+
+        const enc = new TextEncoder();     
+        let appArgs = [enc.encode("withdraw_flat_fund")];
+        // appArgs.push(new Uint8Array(asset_for_payment));
+        appArgs.push(algosdk.encodeUint64(2))
+        const foreignAssets = [asset_for_payment];                
+
+        const from = multsigaddr;
+        const appIndex = appid;
+        const callTxn = algosdk.makeApplicationNoOpTxn(
+            from,
+            suggestedParams,
+            appIndex,
+            appArgs,
+            undefined,
+            undefined,
+            foreignAssets
+        );
+
+        // sign transaction
+        const signature1 = algosdk.signMultisigTransaction(
+            callTxn,
+            multiSigOptions,
+            accountKey1.private_key
+        );
+        const signature2 = algosdk.signMultisigTransaction(
+            callTxn,
+            multiSigOptions,
+            accountKey2.private_key
+        );
+        const stxn = algosdk.mergeMultisigTransactions([
+            signature1.blob,
+            signature2.blob,
+        ]);
+
+        // print transaction data
+        const decoded = algosdk.decodeSignedTransaction(stxn);
+        console.log(decoded);
+
+        // send the transaction
+        logBold('Sending application call transaction.');
+        const { txId: callTxnId } = await algoclient
+            .sendRawTransaction(stxn)
+            .do();
+
+        // wait for confirmation
+        const completedTx = await verboseWaitForConfirmation(algoclient, callTxnId);
+        console.log(completedTx);
+    }); 
+
 }); 
