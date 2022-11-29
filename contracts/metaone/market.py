@@ -311,6 +311,7 @@ def approval():
                 {
                     TxnField.type_enum: TxnType.Payment,
                     TxnField.amount: OPTIN_MIN_BALANCE,
+                    TxnField.fee: Int(0),
                     TxnField.receiver: Txn.sender(),
                 }
             ),
