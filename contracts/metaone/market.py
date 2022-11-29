@@ -397,7 +397,7 @@ def approval():
 
             s_income.store(Add(
                 App.localGet(Txn.accounts[1], local_income),
-                amount,
+                s_income.load(),
             )),
             App.localPut(Txn.accounts[1], local_income, s_income.load()),
 
