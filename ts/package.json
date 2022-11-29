@@ -1,0 +1,31 @@
+{
+    "name": "metaone algo",
+    "version": "1.0.0",
+    "description": "nft rent protocal",
+    "main": "dist/index.js",
+    "typings": "dist/index.d.ts",
+    "engines": {
+        "node": ">=14"
+    },
+    "scripts": {
+        "build": "",
+        "build:watch": "tsc -w",
+        "lint": "eslint . --ext .ts",
+        "prepare": "npm run build",
+        "pretest": "npm run lint",
+        "start": "npm run build && ts-mocha -p ./tsconfig.json -t 1000000 src/*.ts"
+    },
+    "engineStrict": true,
+    "dependencies": {
+        "algosdk": "^1.23.2",
+        "ts-mocha": "^10.0.0"
+    },
+    "devDependencies": {
+        "@tsconfig/node14": "^1.0.1",
+        "@types/mocha": "^9.1.1",
+        "@typescript-eslint/eslint-plugin": "^5.6.0",
+        "@typescript-eslint/parser": "^5.6.0",
+        "eslint": "^8.4.1",
+        "typescript": "~4.5.2"
+    }
+}
