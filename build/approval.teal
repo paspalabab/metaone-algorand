@@ -1,0 +1,897 @@
+#pragma version 6
+txn ApplicationID
+int 0
+==
+bnz main_l27
+txn OnCompletion
+int DeleteApplication
+==
+bnz main_l26
+txn OnCompletion
+int UpdateApplication
+==
+bnz main_l25
+txn OnCompletion
+int OptIn
+==
+bnz main_l24
+txn OnCompletion
+int CloseOut
+==
+bnz main_l23
+txn OnCompletion
+int NoOp
+==
+bnz main_l7
+err
+main_l7:
+txna ApplicationArgs 0
+byte "set_admin"
+==
+bnz main_l22
+txna ApplicationArgs 0
+byte "set_fee"
+==
+bnz main_l21
+txna ApplicationArgs 0
+byte "offer"
+==
+bnz main_l20
+txna ApplicationArgs 0
+byte "callback"
+==
+bnz main_l19
+txna ApplicationArgs 0
+byte "rent"
+==
+bnz main_l18
+txna ApplicationArgs 0
+byte "collect"
+==
+bnz main_l17
+txna ApplicationArgs 0
+byte "withdraw_flat_fund"
+==
+bnz main_l15
+err
+main_l15:
+txna ApplicationArgs 1
+btoi
+callsub withdrawplatfund_4
+main_l16:
+int 1
+return
+main_l17:
+txna ApplicationArgs 1
+btoi
+callsub collect_8
+b main_l16
+main_l18:
+txna ApplicationArgs 1
+btoi
+callsub rent_7
+b main_l16
+main_l19:
+callsub callback_6
+b main_l16
+main_l20:
+txna ApplicationArgs 1
+btoi
+txna ApplicationArgs 2
+btoi
+txna ApplicationArgs 3
+btoi
+txna ApplicationArgs 4
+btoi
+txna ApplicationArgs 5
+btoi
+txna ApplicationArgs 6
+btoi
+callsub offer_5
+b main_l16
+main_l21:
+txna ApplicationArgs 1
+btoi
+txna ApplicationArgs 2
+btoi
+txna ApplicationArgs 3
+btoi
+callsub setfee_3
+b main_l16
+main_l22:
+callsub setadmin_2
+b main_l16
+main_l23:
+txn Sender
+byte "income"
+app_local_get
+int 0
+==
+assert
+txn Sender
+byte "item_index"
+app_local_get
+int 0
+==
+assert
+int 1
+return
+main_l24:
+int 1
+return
+main_l25:
+int 0
+return
+main_l26:
+int 0
+return
+main_l27:
+callsub reset_0
+txna ApplicationArgs 0
+byte "set_admin"
+==
+bnz main_l29
+main_l28:
+int 1
+return
+main_l29:
+callsub setadmin_2
+b main_l28
+
+// reset
+reset_0:
+byte "plat_admin"
+byte ""
+app_global_put
+byte "currency"
+int 0
+app_global_put
+byte "set_rate_denominator"
+int 0
+app_global_put
+byte "set_rate_numerator"
+int 0
+app_global_put
+retsub
+
+// local_reset
+localreset_1:
+store 13
+load 13
+byte "item_index"
+int 0
+app_local_put
+load 13
+byte "time_unit"
+int 0
+app_local_put
+load 13
+byte "max_time_units"
+int 0
+app_local_put
+load 13
+byte "min_time_units"
+int 0
+app_local_put
+load 13
+byte "price_per_unit"
+int 0
+app_local_put
+load 13
+byte "last_valid_time"
+int 0
+app_local_put
+load 13
+byte "is_extendable"
+int 0
+app_local_put
+load 13
+byte "income"
+int 0
+app_local_put
+load 13
+byte "state"
+int 0
+app_local_put
+load 13
+byte "user_account"
+byte ""
+app_local_put
+retsub
+
+// set_admin
+setadmin_2:
+global GroupSize
+int 1
+==
+txn GroupIndex
+int 0
+==
+&&
+assert
+gtxn 0 RekeyTo
+global ZeroAddress
+==
+assert
+byte "plat_admin"
+app_global_get
+byte ""
+==
+txn Sender
+byte "plat_admin"
+app_global_get
+==
+||
+bnz setadmin_2_l2
+int 0
+return
+setadmin_2_l2:
+byte "plat_admin"
+txna Accounts 1
+app_global_put
+retsub
+
+// set_fee
+setfee_3:
+store 2
+store 1
+store 0
+global GroupSize
+int 1
+==
+txn GroupIndex
+int 0
+==
+&&
+assert
+gtxn 0 RekeyTo
+global ZeroAddress
+==
+assert
+txn Sender
+byte "plat_admin"
+app_global_get
+==
+assert
+load 1
+int 0
+!=
+assert
+load 0
+txna Assets 0
+==
+assert
+byte "currency"
+load 0
+app_global_put
+byte "set_rate_denominator"
+load 1
+app_global_put
+byte "set_rate_numerator"
+load 2
+app_global_put
+itxn_begin
+int axfer
+itxn_field TypeEnum
+txna Assets 0
+itxn_field XferAsset
+int 0
+itxn_field AssetAmount
+int 0
+itxn_field Fee
+global CurrentApplicationAddress
+itxn_field AssetReceiver
+itxn_submit
+retsub
+
+// withdraw_plat_fund
+withdrawplatfund_4:
+store 3
+global GroupSize
+int 1
+==
+txn GroupIndex
+int 0
+==
+&&
+assert
+gtxn 0 RekeyTo
+global ZeroAddress
+==
+assert
+byte "currency"
+app_global_get
+txna Assets 0
+==
+assert
+byte "plat_income"
+app_global_get
+load 3
+>=
+assert
+txn Sender
+byte "plat_admin"
+app_global_get
+==
+assert
+itxn_begin
+int axfer
+itxn_field TypeEnum
+txna Assets 0
+itxn_field XferAsset
+load 3
+itxn_field AssetAmount
+int 0
+itxn_field Fee
+txn Sender
+itxn_field AssetReceiver
+itxn_submit
+byte "plat_income"
+app_global_get
+load 3
+-
+store 4
+byte "plat_income"
+load 4
+app_global_put
+retsub
+
+// offer
+offer_5:
+store 10
+store 9
+store 8
+store 7
+store 6
+store 5
+load 7
+load 8
+>
+assert
+load 6
+int 0
+>
+assert
+txn Sender
+byte "state"
+app_local_get
+int 2
+==
+global LatestTimestamp
+txn Sender
+byte "last_valid_time"
+app_local_get
+>
+&&
+bnz offer_5_l7
+offer_5_l1:
+txn Sender
+byte "state"
+app_local_get
+int 0
+==
+bnz offer_5_l6
+txn Sender
+byte "state"
+app_local_get
+int 1
+==
+txn Sender
+byte "state"
+app_local_get
+int 3
+==
+||
+bnz offer_5_l4
+int 0
+return
+offer_5_l4:
+global GroupSize
+int 1
+==
+txn GroupIndex
+int 0
+==
+&&
+assert
+gtxn 0 RekeyTo
+global ZeroAddress
+==
+assert
+load 5
+txn Sender
+byte "item_index"
+app_local_get
+==
+assert
+txn Sender
+byte "time_unit"
+load 6
+app_local_put
+txn Sender
+byte "max_time_units"
+load 7
+app_local_put
+txn Sender
+byte "min_time_units"
+load 8
+app_local_put
+txn Sender
+byte "price_per_unit"
+load 9
+app_local_put
+txn Sender
+byte "is_extendable"
+load 10
+app_local_put
+txn Sender
+byte "state"
+app_local_get
+int 3
+==
+bz offer_5_l10
+txn Sender
+byte "state"
+int 1
+app_local_put
+b offer_5_l10
+offer_5_l6:
+global GroupSize
+int 3
+==
+txn GroupIndex
+int 1
+==
+&&
+assert
+gtxn 0 RekeyTo
+global ZeroAddress
+==
+gtxn 1 RekeyTo
+global ZeroAddress
+==
+&&
+gtxn 2 RekeyTo
+global ZeroAddress
+==
+&&
+assert
+gtxn 0 TypeEnum
+int pay
+==
+assert
+gtxn 0 Amount
+int 100000
+==
+assert
+gtxn 0 Receiver
+global CurrentApplicationAddress
+==
+assert
+load 5
+txna Assets 0
+==
+assert
+gtxn 2 TypeEnum
+int axfer
+==
+assert
+gtxn 2 XferAsset
+load 5
+==
+assert
+gtxn 2 AssetAmount
+int 1
+==
+assert
+gtxn 2 Sender
+txn Sender
+==
+assert
+gtxn 2 AssetReceiver
+global CurrentApplicationAddress
+==
+assert
+gtxn 2 AssetCloseTo
+global ZeroAddress
+==
+assert
+itxn_begin
+int axfer
+itxn_field TypeEnum
+txna Assets 0
+itxn_field XferAsset
+int 0
+itxn_field AssetAmount
+int 0
+itxn_field Fee
+global CurrentApplicationAddress
+itxn_field AssetReceiver
+itxn_submit
+txn Sender
+byte "state"
+int 1
+app_local_put
+txn Sender
+byte "item_index"
+load 5
+app_local_put
+txn Sender
+byte "time_unit"
+load 6
+app_local_put
+txn Sender
+byte "max_time_units"
+load 7
+app_local_put
+txn Sender
+byte "min_time_units"
+load 8
+app_local_put
+txn Sender
+byte "price_per_unit"
+load 9
+app_local_put
+txn Sender
+byte "is_extendable"
+load 10
+app_local_put
+b offer_5_l10
+offer_5_l7:
+txn Sender
+byte "user_account"
+byte ""
+app_local_put
+txn Sender
+byte "is_extendable"
+app_local_get
+int 0
+!=
+bnz offer_5_l9
+txn Sender
+byte "state"
+int 3
+app_local_put
+b offer_5_l1
+offer_5_l9:
+txn Sender
+byte "state"
+int 1
+app_local_put
+b offer_5_l1
+offer_5_l10:
+global CurrentApplicationAddress
+load 5
+asset_holding_get AssetBalance
+store 12
+store 11
+load 12
+assert
+retsub
+
+// callback
+callback_6:
+global GroupSize
+int 1
+==
+txn GroupIndex
+int 0
+==
+&&
+assert
+gtxn 0 RekeyTo
+global ZeroAddress
+==
+assert
+txn Sender
+byte "item_index"
+app_local_get
+txna Assets 0
+==
+assert
+txn Sender
+byte "state"
+app_local_get
+int 2
+==
+global LatestTimestamp
+txn Sender
+byte "last_valid_time"
+app_local_get
+>
+&&
+bz callback_6_l4
+txn Sender
+byte "user_account"
+byte ""
+app_local_put
+txn Sender
+byte "is_extendable"
+app_local_get
+int 0
+!=
+bnz callback_6_l3
+txn Sender
+byte "state"
+int 3
+app_local_put
+b callback_6_l4
+callback_6_l3:
+txn Sender
+byte "state"
+int 1
+app_local_put
+callback_6_l4:
+txn Sender
+byte "state"
+app_local_get
+int 1
+==
+txn Sender
+byte "state"
+app_local_get
+int 3
+==
+||
+assert
+txn Sender
+byte "income"
+app_local_get
+int 0
+==
+assert
+itxn_begin
+int axfer
+itxn_field TypeEnum
+txna Assets 0
+itxn_field XferAsset
+int 0
+itxn_field Fee
+txn Sender
+itxn_field AssetCloseTo
+itxn_next
+int pay
+itxn_field TypeEnum
+int 100000
+itxn_field Amount
+int 0
+itxn_field Fee
+txn Sender
+itxn_field Receiver
+itxn_submit
+txn Sender
+callsub localreset_1
+retsub
+
+// rent
+rent_7:
+store 14
+global GroupSize
+int 2
+==
+txn GroupIndex
+int 0
+==
+&&
+assert
+gtxn 0 RekeyTo
+global ZeroAddress
+==
+gtxn 1 RekeyTo
+global ZeroAddress
+==
+&&
+assert
+txna Accounts 1
+byte "state"
+app_local_get
+int 1
+==
+txna Accounts 1
+byte "state"
+app_local_get
+int 2
+==
+txna Accounts 1
+byte "is_extendable"
+app_local_get
+int 0
+!=
+&&
+global LatestTimestamp
+txna Accounts 1
+byte "last_valid_time"
+app_local_get
+>
+&&
+||
+assert
+gtxn 1 TypeEnum
+int axfer
+==
+assert
+gtxn 1 XferAsset
+byte "currency"
+app_global_get
+==
+assert
+gtxn 1 AssetAmount
+load 14
+==
+assert
+gtxn 1 Sender
+txn Sender
+==
+assert
+gtxn 1 AssetReceiver
+global CurrentApplicationAddress
+==
+assert
+gtxn 1 AssetCloseTo
+global ZeroAddress
+==
+assert
+load 14
+txna Accounts 1
+byte "price_per_unit"
+app_local_get
+%
+int 0
+==
+assert
+load 14
+txna Accounts 1
+byte "price_per_unit"
+app_local_get
+/
+store 15
+load 15
+txna Accounts 1
+byte "min_time_units"
+app_local_get
+>=
+assert
+load 15
+txna Accounts 1
+byte "max_time_units"
+app_local_get
+<=
+assert
+txna Accounts 1
+byte "time_unit"
+app_local_get
+load 15
+*
+store 16
+load 16
+global LatestTimestamp
++
+store 17
+byte "set_rate_numerator"
+app_global_get
+load 14
+*
+store 19
+load 19
+byte "set_rate_denominator"
+app_global_get
+/
+store 19
+load 14
+load 19
+-
+store 18
+byte "plat_income"
+app_global_get
+load 19
++
+store 19
+byte "plat_income"
+load 19
+app_global_put
+txna Accounts 1
+byte "income"
+app_local_get
+load 18
++
+store 18
+txna Accounts 1
+byte "income"
+load 18
+app_local_put
+txna Accounts 1
+byte "last_valid_time"
+load 17
+app_local_put
+txna Accounts 1
+byte "user_account"
+txn Sender
+app_local_put
+txna Accounts 1
+byte "state"
+int 2
+app_local_put
+retsub
+
+// collect
+collect_8:
+store 20
+global GroupSize
+int 1
+==
+txn GroupIndex
+int 0
+==
+&&
+assert
+gtxn 0 RekeyTo
+global ZeroAddress
+==
+assert
+txn Sender
+byte "state"
+app_local_get
+int 2
+==
+global LatestTimestamp
+txn Sender
+byte "last_valid_time"
+app_local_get
+>
+&&
+bz collect_8_l4
+txn Sender
+byte "user_account"
+byte ""
+app_local_put
+txn Sender
+byte "is_extendable"
+app_local_get
+int 0
+!=
+bnz collect_8_l3
+txn Sender
+byte "state"
+int 3
+app_local_put
+b collect_8_l4
+collect_8_l3:
+txn Sender
+byte "state"
+int 1
+app_local_put
+collect_8_l4:
+byte "currency"
+app_global_get
+txna Assets 0
+==
+assert
+txn Sender
+byte "income"
+app_local_get
+load 20
+>=
+assert
+itxn_begin
+int axfer
+itxn_field TypeEnum
+txna Assets 0
+itxn_field XferAsset
+load 20
+itxn_field AssetAmount
+int 0
+itxn_field Fee
+txn Sender
+itxn_field AssetReceiver
+itxn_submit
+txn Sender
+byte "income"
+app_local_get
+load 20
+-
+store 21
+txn Sender
+byte "income"
+load 21
+app_local_put
+retsub
