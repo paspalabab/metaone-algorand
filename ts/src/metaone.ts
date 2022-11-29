@@ -505,8 +505,8 @@ describe('metaone algo tests...', () => {
 
     it('deploy contract', async () => {
 
-        let approval_path = path.join(__dirname, '..', '..', 'project', 'build', 'approval.teal');
-        let clear_path = path.join(__dirname, '..', '..', 'project', 'build', 'clear.teal');
+        let approval_path = path.join(__dirname, '..', '..', 'build', 'approval.teal');
+        let clear_path = path.join(__dirname, '..', '..', 'build', 'clear.teal');
 
         let approval = fs.readFileSync(approval_path);
         let clear = fs.readFileSync(clear_path);
