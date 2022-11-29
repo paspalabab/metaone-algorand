@@ -1,3 +1,4 @@
+import { multisigAddress } from "algosdk";
 import assert from "assert";
 const fs = require("fs");
 const path = require("path");
@@ -14,7 +15,7 @@ const algod_server = "http://94.74.95.107"
 const algod_port = "4001"
 const algoclient = new algosdk.Algodv2(algod_token, algod_server, algod_port);
 
-const walletname = 'Metaone1';
+const walletname = 'Metaone3';
 
 let walletid = null;
 let wallethandle = null;
@@ -198,10 +199,34 @@ describe('metaone algo tests...', () => {
               );
             }
 
-            await pay_start_algo(algoclient, sponsor,sponsor_key,account1, 1000000);
-            await pay_start_algo(algoclient, sponsor,sponsor_key,account2, 1000000);
-            await pay_start_algo(algoclient, sponsor,sponsor_key,account3, 1000000);
-            await pay_start_algo(algoclient, sponsor,sponsor_key,multsigaddr, 1000000);   
+
+            let accountInformation = await algoclient.accountInformation(
+                account1
+            ).do();
+            if(accountInformation.amount < 100000000 + accountInformation['min-balance']) {
+                await pay_start_algo(algoclient, sponsor,sponsor_key,account1, 1000000000);
+            }
+
+            accountInformation = await algoclient.accountInformation(
+                account2
+            ).do();
+            if(accountInformation.amount < 100000000 + accountInformation['min-balance']) {
+                await pay_start_algo(algoclient, sponsor,sponsor_key,account2, 1000000000);
+            }
+
+            accountInformation = await algoclient.accountInformation(
+                account3
+            ).do();
+            if(accountInformation.amount < 100000000 + accountInformation['min-balance']) {
+                await pay_start_algo(algoclient, sponsor,sponsor_key,account3, 1000000000);
+            }
+
+            accountInformation = await algoclient.accountInformation(
+                multsigaddr
+            ).do();
+            if(accountInformation.amount < 100000000 + accountInformation['min-balance']) {
+                await pay_start_algo(algoclient, sponsor,sponsor_key, multsigaddr, 1000000000);
+            }
 
             await kmdclient.importMultisig(
                 wallethandle,
@@ -279,6 +304,14 @@ describe('metaone algo tests...', () => {
         asset_for_payment = completedTx['asset-index']
         console.log(`Asset for payments: ${asset_for_payment}`);
 
+        const assetInformation = await algoclient.accountAssetInformation(
+            multsigaddr,
+            asset_for_payment
+        ).do();
+
+        assert.equal(assetInformation['asset-holding']['asset-id'], asset_for_payment);
+        assert.equal(assetInformation['asset-holding']['amount'], 1000);
+
     });     
 
 
@@ -309,6 +342,15 @@ describe('metaone algo tests...', () => {
 
         // wait for confirmation
         await verboseWaitForConfirmation(algoclient, optInTxId);       
+
+        const assetInformation = await algoclient.accountAssetInformation(
+            account2,
+            asset_for_payment
+        ).do();
+
+        assert.equal(assetInformation['asset-holding']['asset-id'], asset_for_payment);
+        assert.equal(assetInformation['asset-holding']['amount'], 0);
+
     });
 
     it('the borrower optin the asset for rent payments', async () => {
@@ -338,6 +380,15 @@ describe('metaone algo tests...', () => {
 
         // wait for confirmation
         await verboseWaitForConfirmation(algoclient, optInTxId);       
+
+        const assetInformation = await algoclient.accountAssetInformation(
+            account3,
+            asset_for_payment
+        ).do();
+
+        assert.equal(assetInformation['asset-holding']['asset-id'], asset_for_payment);
+        assert.equal(assetInformation['asset-holding']['amount'], 0);
+
     });
 
 
@@ -392,6 +443,15 @@ describe('metaone algo tests...', () => {
         // wait for confirmation
         const completedTx = await verboseWaitForConfirmation(algoclient, callTxnId);
 
+        const assetInformation = await algoclient.accountAssetInformation(
+            account3,
+            asset_for_payment
+        ).do();
+
+        assert.equal(assetInformation['asset-holding']['asset-id'], asset_for_payment);
+        assert.equal(assetInformation['asset-holding']['amount'], 1000);
+
+
     });     
 
     it('create asset for lease', async () => {
@@ -431,75 +491,109 @@ describe('metaone algo tests...', () => {
 
         asset_for_lease = completedTx['asset-index']
         console.log(`Asset for lease: ${asset_for_lease}`);
+
+        const assetInformation = await algoclient.accountAssetInformation(
+            account2,
+            asset_for_lease
+        ).do();
+
+        assert.equal(assetInformation['asset-holding']['asset-id'], asset_for_lease);
+        assert.equal(assetInformation['asset-holding']['amount'], 1);
+
+
     });     
 
     it('deploy contract', async () => {
-        try 
-        {
-            let approval_path = path.join(__dirname, '..', '..', 'project', 'build', 'approval.teal');
-            let clear_path = path.join(__dirname, '..', '..', 'project', 'build', 'clear.teal');
 
-            let approval = fs.readFileSync(approval_path);
-            let clear = fs.readFileSync(clear_path);
+        let approval_path = path.join(__dirname, '..', '..', 'project', 'build', 'approval.teal');
+        let clear_path = path.join(__dirname, '..', '..', 'project', 'build', 'clear.teal');
 
-            // console.log(`approval: ${approval}`);
-            // console.log(`clear: ${clear}`);
+        let approval = fs.readFileSync(approval_path);
+        let clear = fs.readFileSync(clear_path);
 
-            // define application parameters
-            const from = account1;
-            const onComplete = algosdk.OnApplicationComplete.NoOpOC;
-            const approvalProgram = await getBasicProgramBytes(algoclient, approval);
-            const clearProgram = await getBasicProgramBytes(algoclient, clear);
-            const numLocalInts = 9 + 1;
-            const numLocalByteSlices = 1;
-            const numGlobalInts = 4;
-            const numGlobalByteSlices = 1;
-            const accounts = [account1];
+        // console.log(`approval: ${approval}`);
+        // console.log(`clear: ${clear}`);
 
-            // console.log(`approvalProgram: ${approvalProgram}`);
-            // console.log(`clearProgram: ${clearProgram}`);
+        // define application parameters
+        const from = account1;
+        const onComplete = algosdk.OnApplicationComplete.NoOpOC;
+        const approvalProgram = await getBasicProgramBytes(algoclient, approval);
+        const clearProgram = await getBasicProgramBytes(algoclient, clear);
+        const numLocalInts = 9 + 1;
+        const numLocalByteSlices = 1;
+        const numGlobalInts = 4;
+        const numGlobalByteSlices = 1;
+        const accounts = [account1];
 
-            const enc = new TextEncoder();     
-            const appArgs = [enc.encode("set_admin")];
+        // console.log(`approvalProgram: ${approvalProgram}`);
+        // console.log(`clearProgram: ${clearProgram}`);
 
-            // get suggested params
-            const suggestedParams = await algoclient.getTransactionParams().do();        
+        const enc = new TextEncoder();     
+        const appArgs = [enc.encode("set_admin")];
 
-            // create the application creation transaction
-            const createTxn = algosdk.makeApplicationCreateTxn(
-                account1,
-                suggestedParams,
-                onComplete,
-                approvalProgram,
-                clearProgram,
-                numLocalInts,
-                numLocalByteSlices,
-                numGlobalInts,
-                numGlobalByteSlices,
-                appArgs,
-                accounts
-            );
+        // get suggested params
+        const suggestedParams = await algoclient.getTransactionParams().do();        
 
-            // send the transaction
-            logBold('Sending application creation transaction.');
-            const signedCreateTxn = createTxn.signTxn(accountKey1.private_key);
-            const { txId: createTxId } = await algoclient
-            .sendRawTransaction(signedCreateTxn)
-            .do();
+        // create the application creation transaction
+        const createTxn = algosdk.makeApplicationCreateTxn(
+            account1,
+            suggestedParams,
+            onComplete,
+            approvalProgram,
+            clearProgram,
+            numLocalInts,
+            numLocalByteSlices,
+            numGlobalInts,
+            numGlobalByteSlices,
+            appArgs,
+            accounts
+        );
 
-            // wait for confirmation
-            const completedTx = await verboseWaitForConfirmation(algoclient, createTxId);
+        // send the transaction
+        logBold('Sending application creation transaction.');
+        const signedCreateTxn = createTxn.signTxn(accountKey1.private_key);
+        const { txId: createTxId } = await algoclient
+        .sendRawTransaction(signedCreateTxn)
+        .do();
 
-            appid = completedTx['application-index'];
-            console.log(`appid = ${appid}`);
+        // wait for confirmation
+        const completedTx = await verboseWaitForConfirmation(algoclient, createTxId);
 
-            appAddress = algosdk.getApplicationAddress(appid);
-            await pay_start_algo(algoclient, sponsor,sponsor_key, appAddress, 200000);
+        appid = completedTx['application-index'];
+        console.log(`appid = ${appid}`);
 
-        } catch (err) {
-            console.log(err);
+        appAddress = algosdk.getApplicationAddress(appid);
+        await pay_start_algo(algoclient, sponsor,sponsor_key, appAddress, 200000);
+
+
+        const appInformation = await algoclient.accountApplicationInformation(
+            account1,
+            appid
+        ).do();
+
+        assert.equal(appInformation['created-app']['global-state-schema']["num-byte-slice"], 1);
+        assert.equal(appInformation['created-app']['global-state-schema']["num-uint"], 4);
+        assert.equal(appInformation['created-app']['local-state-schema']["num-byte-slice"], 1);
+        assert.equal(appInformation['created-app']['local-state-schema']["num-uint"], 10);
+
+        for (var item of appInformation['created-app']['global-state']) {
+            switch(Buffer.from(item.key, "base64").toString()){
+                case 'currency':
+                    console.log('it is currency: ', item.value);
+                break;
+                case 'plat_admin':
+                    assert.equal(algosdk.encodeAddress(new Uint8Array(Buffer.from(item.value.bytes, "base64"))), account1);
+                break;
+                case 'set_rate_denominator':
+                    console.log('it is set_rate_denominator: ', item.value);
+                break;
+                case 'set_rate_numerator':
+                    console.log('it is set_rate_numerator: ', item.value);
+                break;
+                default:
+                    assert.fail();
+            }
         }
-
     }); 
 
     it('change admin to multisig account', async () => {
@@ -529,9 +623,40 @@ describe('metaone algo tests...', () => {
         // wait for confirmation
         const completedTx = await verboseWaitForConfirmation(algoclient, callTxnId);
         console.log(completedTx);
+
+        const appInformation = await algoclient.getApplicationByID(appid).do();
+
+        assert.equal(appInformation['params']['global-state-schema']["num-byte-slice"], 1);
+        assert.equal(appInformation['params']['global-state-schema']["num-uint"], 4);
+        assert.equal(appInformation['params']['local-state-schema']["num-byte-slice"], 1);
+        assert.equal(appInformation['params']['local-state-schema']["num-uint"], 10);
+
+        for (var item of appInformation['params']['global-state']) {
+            switch(Buffer.from(item.key, "base64").toString()){
+                case 'currency':
+                    assert.equal(0, item.value.uint);
+                break;
+                case 'plat_admin':
+                    assert.equal(algosdk.encodeAddress(new Uint8Array(Buffer.from(item.value.bytes, "base64"))), multsigaddr);
+                break;
+                case 'set_rate_denominator':
+                    assert.equal(0, item.value.uint);
+                break;
+                case 'set_rate_numerator':
+                    assert.equal(0, item.value.uint);
+                break;
+                default:
+                    assert.fail();
+            }
+        }
+
+        
     }); 
 
     it('set fee', async () => {
+
+        const denominator = 10;
+        const numerator = 1;
 
         // get suggested params
         let suggestedParams = await algoclient.getTransactionParams().do();  
@@ -549,8 +674,8 @@ describe('metaone algo tests...', () => {
         let appArgs = [enc.encode("set_fee")];
         // appArgs.push(new Uint8Array(asset_for_payment));
         appArgs.push(algosdk.encodeUint64(asset_for_payment))
-        appArgs.push(algosdk.encodeUint64(10))
-        appArgs.push(algosdk.encodeUint64(1))
+        appArgs.push(algosdk.encodeUint64(denominator))
+        appArgs.push(algosdk.encodeUint64(numerator))
         const foreignAssets = [asset_for_payment];                
 
         console.log(`foreignAssets = ${foreignAssets}`)
@@ -596,12 +721,44 @@ describe('metaone algo tests...', () => {
         // wait for confirmation
         const completedTx = await verboseWaitForConfirmation(algoclient, callTxnId);
         console.log(completedTx);
+
+
+        const appInformation = await algoclient.getApplicationByID(appid).do();
+
+        assert.equal(appInformation['params']['global-state-schema']["num-byte-slice"], 1);
+        assert.equal(appInformation['params']['global-state-schema']["num-uint"], 4);
+        assert.equal(appInformation['params']['local-state-schema']["num-byte-slice"], 1);
+        assert.equal(appInformation['params']['local-state-schema']["num-uint"], 10);
+
+        for (var item of appInformation['params']['global-state']) {
+            switch(Buffer.from(item.key, "base64").toString()){
+                case 'currency':
+                    assert.equal(asset_for_payment, item.value.uint);
+                break;
+                case 'plat_admin':
+                    assert.equal(algosdk.encodeAddress(new Uint8Array(Buffer.from(item.value.bytes, "base64"))), multsigaddr);
+                break;
+                case 'set_rate_denominator':
+                    assert.equal(denominator, item.value.uint);
+                break;
+                case 'set_rate_numerator':
+                    assert.equal(numerator, item.value.uint);
+                break;
+                default:
+                    assert.fail();
+            }
+        }
+
     }); 
 
     it('the lender optin', async () => {
 
         // get suggested params
         const suggestedParams = await algoclient.getTransactionParams().do();  
+
+        const lender_accountInformation_pre = await algoclient.accountInformation(
+            account2
+        ).do();
 
         // opt in to the created application
         const optInTxn = algosdk.makeApplicationOptInTxn(
@@ -619,6 +776,21 @@ describe('metaone algo tests...', () => {
 
         // wait for confirmation
         await verboseWaitForConfirmation(algoclient, optInTxId);       
+
+        const appInformation = await algoclient.accountApplicationInformation(
+            account2,
+            appid
+        ).do();
+
+        assert.equal(appInformation['app-local-state']['schema']["num-byte-slice"], 1);
+        assert.equal(appInformation['app-local-state']['schema']["num-uint"], 10);
+
+        const lender_accountInformation_after = await algoclient.accountInformation(
+            account2
+        ).do();
+        console.log('lender amount after: ', lender_accountInformation_after.amount)
+        console.log('lender amount before: ', lender_accountInformation_pre.amount)
+
     }); 
 
 
@@ -642,7 +814,15 @@ describe('metaone algo tests...', () => {
         .do();
 
         // wait for confirmation
-        await verboseWaitForConfirmation(algoclient, optInTxId);       
+        await verboseWaitForConfirmation(algoclient, optInTxId);      
+        
+        const appInformation = await algoclient.accountApplicationInformation(
+            account3,
+            appid
+        ).do();
+
+        assert.equal(appInformation['app-local-state']['schema']["num-byte-slice"], 1);
+        assert.equal(appInformation['app-local-state']['schema']["num-uint"], 10);        
     }); 
 
 
@@ -653,15 +833,23 @@ describe('metaone algo tests...', () => {
         // console.log(`params.genesisID: \n ${params.genesisID}`);
         // console.log(`params.genesisHash: \n ${params.genesisHash}`);
         // comment out the next two lines to use suggested fee
-        params.fee = 3000;
         params.flatFee = true; 
         const enc = new TextEncoder();   
         const note = enc.encode("rent offer");   
 
+        const lender_accountInformation_pre = await algoclient.accountInformation(
+            account2
+        ).do();
+        const app_accountInformation_pre = await algoclient.accountInformation(
+            appAddress
+        ).do();
+
         // pay for nft optin of contract
+        params.fee = 1000;
         const txn1 = algosdk.makePaymentTxnWithSuggestedParams(account2, appAddress, 100000, undefined, note, params);
 
         // build an offer
+        params.fee = 2000;
         let appArgs = [enc.encode("offer")];
         appArgs.push(algosdk.encodeUint64(asset_for_lease));  // asset for lease
         appArgs.push(algosdk.encodeUint64(60*3600*24));  //time unit
@@ -681,6 +869,7 @@ describe('metaone algo tests...', () => {
         );
         
         // transfer nft to contract
+        params.fee = 1000;
         const txn3 = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
             from: account2,
             to: appAddress,
@@ -703,7 +892,72 @@ describe('metaone algo tests...', () => {
         const { txId } = await algoclient.sendRawTransaction([stxn1, stxn2, stxn3]).do();
 
         // wait for confirmation
-        await verboseWaitForConfirmation(algoclient, txId);       
+        await verboseWaitForConfirmation(algoclient, txId);     
+        
+        const appInformation = await algoclient.accountApplicationInformation(
+            account2,
+            appid
+        ).do();
+
+        assert.equal(appInformation['app-local-state']['schema']["num-byte-slice"], 1);
+        assert.equal(appInformation['app-local-state']['schema']["num-uint"], 10);        
+
+        for (var item of appInformation['app-local-state']['key-value']) {
+            switch(Buffer.from(item.key, "base64").toString()){
+                case 'item_index':
+                    assert.equal(asset_for_lease, item.value.uint);
+                break;
+                case 'is_extendable':
+                    assert.equal(1, item.value.uint);
+                break;
+                case 'max_time_units':
+                    assert.equal(10, item.value.uint);
+                break;
+                case 'min_time_units':
+                    assert.equal(1, item.value.uint);
+                break;
+                case 'time_unit':
+                    assert.equal(60*3600*24, item.value.uint);
+                break;             
+                case 'state':
+                    assert.equal(1, item.value.uint);  
+                break;
+                case 'price_per_unit':
+                    assert.equal(2, item.value.uint);  
+                break;
+                default:
+                    assert.fail();
+            }
+        }
+
+        let assetInformation = await algoclient.accountAssetInformation(
+            account2,
+            asset_for_lease
+        ).do();
+
+        assert.equal(assetInformation['asset-holding']['asset-id'], asset_for_lease);
+        assert.equal(assetInformation['asset-holding']['amount'], 0);
+
+        assetInformation = await algoclient.accountAssetInformation(
+            appAddress,
+            asset_for_lease
+        ).do();
+
+        assert.equal(assetInformation['asset-holding']['asset-id'], asset_for_lease);
+        assert.equal(assetInformation['asset-holding']['amount'], 1);        
+
+        const lender_accountInformation_after = await algoclient.accountInformation(
+            account2
+        ).do();
+        const app_accountInformation_after = await algoclient.accountInformation(
+            appAddress
+        ).do();
+        console.log('lender amount after: ', lender_accountInformation_after.amount)
+        console.log('lender amount before: ', lender_accountInformation_pre.amount)
+
+
+        assert.equal(app_accountInformation_after.amount - app_accountInformation_pre.amount, 100000);
+        assert.equal(lender_accountInformation_pre.amount - lender_accountInformation_after.amount, 100000+1000+2000+1000);
     }); 
     
 
@@ -714,7 +968,7 @@ describe('metaone algo tests...', () => {
         // console.log(`params.genesisID: \n ${params.genesisID}`);
         // console.log(`params.genesisHash: \n ${params.genesisHash}`);
         // comment out the next two lines to use suggested fee
-        params.fee = 3000;
+        params.fee = 1000;
         params.flatFee = true; 
         const enc = new TextEncoder();   
         const note = enc.encode("rent offer");   
@@ -746,22 +1000,71 @@ describe('metaone algo tests...', () => {
         .do();
 
         // wait for confirmation
-        await verboseWaitForConfirmation(algoclient, TxId);       
+        await verboseWaitForConfirmation(algoclient, TxId);    
+        
+        const appInformation = await algoclient.accountApplicationInformation(
+            account2,
+            appid
+        ).do();
+
+        assert.equal(appInformation['app-local-state']['schema']["num-byte-slice"], 1);
+        assert.equal(appInformation['app-local-state']['schema']["num-uint"], 10);        
+
+        for (var item of appInformation['app-local-state']['key-value']) {
+            switch(Buffer.from(item.key, "base64").toString()){
+                case 'item_index':
+                    assert.equal(asset_for_lease, item.value.uint);
+                break;
+                case 'is_extendable':
+                    assert.equal(1, item.value.uint);
+                break;
+                case 'max_time_units':
+                    assert.equal(30, item.value.uint);
+                break;
+                case 'min_time_units':
+                    assert.equal(1, item.value.uint);
+                break;
+                case 'time_unit':
+                    assert.equal(4, item.value.uint);
+                break;             
+                case 'state':
+                    assert.equal(1, item.value.uint);  
+                break;
+                case 'price_per_unit':
+                    assert.equal(5, item.value.uint);  
+                break;
+                default:
+                    assert.fail();
+            }
+        }        
+
     });     
 
     it('rent the nft', async () => {
+        
+        const borrower_assetInformatio_pre = await algoclient.accountAssetInformation(
+            account3,
+            asset_for_payment
+        ).do();
+        const app_assetInformatio_pre = await algoclient.accountAssetInformation(
+            appAddress,
+            asset_for_payment
+        ).do();
+
+        console.log('borrower_assetInformatio_pre: ',borrower_assetInformatio_pre['asset-holding']['amount']);
+        console.log('app_assetInformatio_pre: ',app_assetInformatio_pre['asset-holding']['amount']);
 
         // Construct the transaction
         let params = await algoclient.getTransactionParams().do();
         // console.log(`params.genesisID: \n ${params.genesisID}`);
         // console.log(`params.genesisHash: \n ${params.genesisHash}`);
         // comment out the next two lines to use suggested fee
-        params.fee = 2000;
         params.flatFee = true; 
         const enc = new TextEncoder();   
         const note = enc.encode("rent nft");   
 
         // build an offer
+        params.fee = 1000;
         let appArgs = [enc.encode("rent")];
         appArgs.push(algosdk.encodeUint64(20));  // amount of payments
         const foreignAssets = [asset_for_payment];       
@@ -777,6 +1080,7 @@ describe('metaone algo tests...', () => {
         );
         
         // transfer nft to contract
+        params.fee = 1000;
         const txn2 = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
             from: account3,
             to: appAddress,
@@ -797,7 +1101,22 @@ describe('metaone algo tests...', () => {
         const { txId } = await algoclient.sendRawTransaction([stxn1, stxn2]).do();
 
         // wait for confirmation
-        await verboseWaitForConfirmation(algoclient, txId);       
+        await verboseWaitForConfirmation(algoclient, txId);  
+        
+        const borrower_assetInformatio_after = await algoclient.accountAssetInformation(
+            account3,
+            asset_for_payment
+        ).do();
+        const app_assetInformatio_after = await algoclient.accountAssetInformation(
+            appAddress,
+            asset_for_payment
+        ).do();
+        console.log('borrower_assetInformatio_after: ',borrower_assetInformatio_after['asset-holding']['amount']);
+        console.log('app_assetInformatio_after: ',app_assetInformatio_after['asset-holding']['amount']);
+
+        assert.equal(borrower_assetInformatio_pre['asset-holding']['amount'] - borrower_assetInformatio_after['asset-holding']['amount'], 20);
+        assert.equal(app_assetInformatio_after['asset-holding']['amount'] - app_assetInformatio_pre['asset-holding']['amount'], 20);  
+
     });     
 
 
@@ -893,6 +1212,15 @@ describe('metaone algo tests...', () => {
 
     it('try to collect rents', async () => {
         
+        const lender_assetInformatio_pre = await algoclient.accountAssetInformation(
+            account2,
+            asset_for_payment
+        ).do();
+        const app_assetInformatio_pre = await algoclient.accountAssetInformation(
+            appAddress,
+            asset_for_payment
+        ).do();
+
         // Construct the transaction
         let params = await algoclient.getTransactionParams().do();
         // console.log(`params.genesisID: \n ${params.genesisID}`);
@@ -925,11 +1253,43 @@ describe('metaone algo tests...', () => {
         .do();
 
         // wait for confirmation
-        await verboseWaitForConfirmation(algoclient, TxId);    
+        await verboseWaitForConfirmation(algoclient, TxId);   
+        
+        const lender_assetInformatio_after = await algoclient.accountAssetInformation(
+            account2,
+            asset_for_payment
+        ).do();
+        const app_assetInformatio_after = await algoclient.accountAssetInformation(
+            appAddress,
+            asset_for_payment
+        ).do();
+        console.log('lender_assetInformatio_after: ',lender_assetInformatio_after['asset-holding']['amount']);
+        console.log('app_assetInformatio_after: ',app_assetInformatio_after['asset-holding']['amount']);
+
+        assert.equal(lender_assetInformatio_after['asset-holding']['amount'] - lender_assetInformatio_pre['asset-holding']['amount'], 18);
+        assert.equal(app_assetInformatio_pre['asset-holding']['amount'] - app_assetInformatio_after['asset-holding']['amount'], 18);  
+        
+
     });   
 
     it('try to recall the nft', async () => {
         
+        const lender_accountInformation_pre = await algoclient.accountInformation(
+            account2
+        ).do();
+        const app_accountInformation_pre = await algoclient.accountInformation(
+            appAddress
+        ).do();
+        const lender_assetInformation_pre = await algoclient.accountAssetInformation(
+            account2,
+            asset_for_lease
+        ).do();
+        const app_assetInformation_pre = await algoclient.accountAssetInformation(
+            appAddress,
+            asset_for_lease
+        ).do();
+        assert.equal(app_assetInformation_pre['asset-holding']['amount'], 1);
+
         // Construct the transaction
         let params = await algoclient.getTransactionParams().do();
         // console.log(`params.genesisID: \n ${params.genesisID}`);
@@ -962,6 +1322,26 @@ describe('metaone algo tests...', () => {
 
         // wait for confirmation
         await verboseWaitForConfirmation(algoclient, TxId);    
+
+
+        const lender_accountInformation_after = await algoclient.accountInformation(
+            account2
+        ).do();
+        const app_accountInformation_after = await algoclient.accountInformation(
+            appAddress
+        ).do();
+
+        console.log('lender amount after: ', lender_accountInformation_after.amount)
+        console.log('lender amount before: ', lender_accountInformation_pre.amount)
+        assert.equal(app_accountInformation_pre.amount - app_accountInformation_after.amount, 100000);
+        assert.equal(lender_accountInformation_after.amount - lender_accountInformation_pre.amount, 100000 - 3000);
+
+        const lender_assetInformation_after = await algoclient.accountAssetInformation(
+            account2,
+            asset_for_lease
+        ).do();
+
+        assert.equal(lender_assetInformation_after['asset-holding']['amount'] - lender_assetInformation_pre['asset-holding']['amount'], 1);
     });  
 
     it('lender closeout', async () => {
@@ -1026,6 +1406,15 @@ describe('metaone algo tests...', () => {
 
     it('withdraw plat fund', async () => {
 
+        const manager_assetInformatio_pre = await algoclient.accountAssetInformation(
+            multsigaddr,
+            asset_for_payment
+        ).do();
+        const app_assetInformatio_pre = await algoclient.accountAssetInformation(
+            appAddress,
+            asset_for_payment
+        ).do();
+
         // get suggested params
         let suggestedParams = await algoclient.getTransactionParams().do();  
         suggestedParams.fee = 2000;
@@ -1085,6 +1474,20 @@ describe('metaone algo tests...', () => {
         // wait for confirmation
         const completedTx = await verboseWaitForConfirmation(algoclient, callTxnId);
         console.log(completedTx);
+
+
+        const manager_assetInformatio_after = await algoclient.accountAssetInformation(
+            multsigaddr,
+            asset_for_payment
+        ).do();
+        const app_assetInformatio_after = await algoclient.accountAssetInformation(
+            appAddress,
+            asset_for_payment
+        ).do();
+
+        assert.equal(manager_assetInformatio_after['asset-holding']['amount'] - manager_assetInformatio_pre['asset-holding']['amount'], 2);
+        assert.equal(app_assetInformatio_pre['asset-holding']['amount'] - app_assetInformatio_after['asset-holding']['amount'], 2);        
+        
     }); 
 
 }); 
