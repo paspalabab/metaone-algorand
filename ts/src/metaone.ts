@@ -505,6 +505,10 @@ describe('metaone algo tests...', () => {
 
     it('deploy contract', async () => {
 
+        const admin_accountInformation_pre = await algoclient.accountInformation(
+            account1
+        ).do();
+       
         let approval_path = path.join(__dirname, '..', '..', 'build', 'approval.teal');
         let clear_path = path.join(__dirname, '..', '..', 'build', 'clear.teal');
 
@@ -579,21 +583,27 @@ describe('metaone algo tests...', () => {
         for (var item of appInformation['created-app']['global-state']) {
             switch(Buffer.from(item.key, "base64").toString()){
                 case 'currency':
-                    console.log('it is currency: ', item.value);
+                    assert.equal(item.value.uint, 0);
                 break;
                 case 'plat_admin':
                     assert.equal(algosdk.encodeAddress(new Uint8Array(Buffer.from(item.value.bytes, "base64"))), account1);
                 break;
                 case 'set_rate_denominator':
-                    console.log('it is set_rate_denominator: ', item.value);
+                    assert.equal(item.value.uint, 0);
                 break;
                 case 'set_rate_numerator':
-                    console.log('it is set_rate_numerator: ', item.value);
+                    assert.equal(item.value.uint, 0);
                 break;
                 default:
                     assert.fail();
             }
         }
+
+        const admin_accountInformation_after = await algoclient.accountInformation(
+            account1
+        ).do();
+        console.log(`Just spent ${admin_accountInformation_pre.amount - admin_accountInformation_after.amount} microAlgos to deploy a contract`)
+
     }); 
 
     it('change admin to multisig account', async () => {
